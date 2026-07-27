@@ -16,10 +16,12 @@ public partial class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         
+        // Add services
         builder.Services.AddValidation();
         var connString = "Data Source = Pharma.db";
         builder.Services.AddSqlite<PharmaContext>(connString);
 
+        // Add JWT Authentication
         var key = Encoding.UTF8.GetBytes("YourSuperSecretKeyHereAtLeast32CharactersLong!");
         
         builder.Services.AddAuthentication(options =>
@@ -42,29 +44,39 @@ public partial class Program
         });
 
         builder.Services.AddAuthorization();
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
         
+        // Add OpenAPI (built-in to .NET 10)
+        builder.Services.AddOpenApi();
+        
+        // Register FluentValidation
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
         builder.Services.AddFluentValidationAutoValidation();
         builder.Services.AddFluentValidationClientsideAdapters();
 
         var app = builder.Build();
 
+        // Configure pipeline
         if (app.Environment.IsDevelopment())
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            // Built-in OpenAPI endpoint
+            app.MapOpenApi();
+            
+            // Use Swagger UI with the built-in OpenAPI
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/{documentName}.json", "Pharmacy API");
+            });
         }
 
-        app.UseHttpsRedirection();
+        // app.UseHttpsRedirection(); // Comment out for development
         app.UseAuthentication();
         app.UseAuthorization();
 
-        //middleware
+        // Add middleware
         app.UseMiddleware<ActivityLoggingMiddleware>();
         app.UseMiddleware<ValidationMiddleware>();
 
+        // Map all endpoints
         app.MapAuthEndpoints();
         app.MapSalesEndpoints();
         app.MapBillEndpoints();

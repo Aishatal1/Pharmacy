@@ -3,32 +3,15 @@
 GET {{Pharmacy_HostAddress}}/weatherforecast/
 Accept: application/json
 
+
 ###
-POST http://localhost:5103/customers
+
+POST http://localhost:5103/auth/register
 Content-Type: application/json
-Authorization: Bearer YOUR_TOKEN
 
 {
-    "name": "",
-    "phoneNumber": ""
-}
-
-{
-  "data": [
-    {
-      "id": 1,
-      "action": "CREATE",
-      "tableName": "Customers",
-      "recordId": 5,
-      "details": "{\"name\":\"John Doe\",\"email\":\"john@example.com\"}",
-      "timestamp": "2026-07-26T10:30:00Z",
-      "userName": "Admin User"
-    }
-  ],
-  "pagination": {
-    "currentPage": 1,
-    "pageSize": 10,
-    "totalCount": 45,
-    "totalPages": 5
-  }
+    "username": "admin1",
+    "password": "admin123",
+    "fullName": "Admin User",
+    "role": "Admin"
 }
