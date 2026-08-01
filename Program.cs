@@ -21,32 +21,34 @@ public partial class Program
         var connString = "Data Source = Pharma.db";
         builder.Services.AddSqlite<PharmaContext>(connString);
 
-        // Add JWT Authentication
-        var key = Encoding.UTF8.GetBytes("YourSuperSecretKeyHereAtLeast32CharactersLong!");
-        
-        builder.Services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
-        {
-            options.TokenValidationParameters = new TokenValidationParameters
+        // JWT Authentication
+        var secretKey = "YourSuperSecretKeyHereAtLeast32CharactersLong!";
+        var issuer = "http://localhost:5103";
+        var audience = "http://localhost:5103";
+
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
             {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = "PharmacyAPI",
-                ValidAudience = "PharmacyClient",
-                IssuerSigningKey = new SymmetricSecurityKey(key)
-            };
-        });
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = issuer,
+                    ValidateAudience = true,
+                    ValidAudience = audience,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(secretKey)
+                    ),
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(5)
+                };
+            });
 
         builder.Services.AddAuthorization();
         
-        // Add OpenAPI (built-in to .NET 10)
-        builder.Services.AddOpenApi();
+        // Add Swagger
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
         
         // Register FluentValidation
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -58,30 +60,30 @@ public partial class Program
         // Configure pipeline
         if (app.Environment.IsDevelopment())
         {
-            // Built-in OpenAPI endpoint
-            app.MapOpenApi();
-            
-            // Use Swagger UI with the built-in OpenAPI
-            app.UseSwaggerUI(options =>
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
             {
-                options.SwaggerEndpoint("/openapi/{documentName}.json", "Pharmacy API");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pharmacy API V1");
+                c.RoutePrefix = "swagger";
             });
         }
 
-        // app.UseHttpsRedirection(); // Comment out for development
         app.UseAuthentication();
         app.UseAuthorization();
 
         // Add middleware
-        app.UseMiddleware<ActivityLoggingMiddleware>();
-        app.UseMiddleware<ValidationMiddleware>();
+        //app.UseMiddleware<ActivityLoggingMiddleware>();
+        //app.UseMiddleware<ValidationMiddleware>();
 
         // Map all endpoints
         app.MapAuthEndpoints();
         app.MapSalesEndpoints();
         app.MapBillEndpoints();
         app.MapActivityLogEndpoints();
-
+        app.MapCustomerEndpoints();
+        app.MapProductEndpoints();
+        app.MapInvoiceEndpoints();
+        app.MapTransactionEndpoints();
         app.Run();
     }
 }

@@ -13,18 +13,16 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        // Register a new user
+        // Register
         app.MapPost("/auth/register", async (
             CreateUserDto createDto,
             PharmaContext context) =>
         {
-            // Check if username exists
             if (await context.Users.AnyAsync(u => u.Username == createDto.Username))
             {
                 return Results.Conflict($"Username '{createDto.Username}' already exists");
             }
 
-            // Check if role is valid
             var validRoles = new[] { "Admin", "Cashier", "Manager" };
             if (!validRoles.Contains(createDto.Role))
             {
@@ -34,7 +32,7 @@ public static class AuthEndpoints
             var user = new User
             {
                 Username = createDto.Username,
-                PasswordHash = createDto.Password, // TODO: Use hashing!
+                PasswordHash = createDto.Password,
                 FullName = createDto.FullName,
                 Role = createDto.Role,
                 IsActive = true,
@@ -44,17 +42,10 @@ public static class AuthEndpoints
             await context.Users.AddAsync(user);
             await context.SaveChangesAsync();
 
-            return Results.Ok(new 
-            { 
-                Message = "User created successfully", 
-                UserId = user.Id,
-                Username = user.Username,
-                Role = user.Role
-            });
-        })
-        .WithName("Register");
+            return Results.Ok(new { message = "User created successfully", userId = user.Id });
+        });
 
-        // Login - Returns JWT Token
+        // LOGIN
         app.MapPost("/auth/login", async (
             LoginDto loginDto,
             PharmaContext context) =>
@@ -67,7 +58,6 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            // TODO: Use proper password hashing!
             if (user.PasswordHash != loginDto.Password)
             {
                 return Results.Unauthorized();
@@ -78,44 +68,63 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            // Generate JWT token
-            var token = GenerateJwtToken(user);
+            // Generate token
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes("YourSuperSecretKeyHereAtLeast32CharactersLong!");
+            
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim(ClaimTypes.Role, user.Role),
+                    new Claim("FullName", user.FullName)
+                }),
+                Expires = DateTime.UtcNow.AddHours(8),
+                Issuer = "http://localhost:5103",
+                Audience = "http://localhost:5103",
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            };
 
-            var userDto = new UserDto(
-                user.Id,
-                user.Username,
-                user.FullName,
-                user.Role,
-                user.IsActive,
-                user.CreatedAt
-            );
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            var tokenString = tokenHandler.WriteToken(token);
 
-            return Results.Ok(new LoginResponseDto(token, userDto));
-        })
-        .WithName("Login");
-    }
+            // Simple response
+            var response = new
+            {
+                token = tokenString,
+                user = new
+                {
+                    user.Id,
+                    user.Username,
+                    user.FullName,
+                    user.Role,
+                    user.IsActive,
+                    user.CreatedAt
+                }
+            };
 
-    private static string GenerateJwtToken(User user)
-    {
-        var claims = new[]
+            return Results.Json(response);
+        });
+
+        // Logout
+        app.MapPost("/auth/logout", async (
+            ClaimsPrincipal user,
+            PharmaContext context) =>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.Role),
-            new Claim("FullName", user.FullName)
-        };
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("YourSuperSecretKeyHereAtLeast32CharactersLong!"));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var token = new JwtSecurityToken(
-            issuer: "PharmacyAPI",
-            audience: "PharmacyClient",
-            claims: claims,
-            expires: DateTime.Now.AddHours(8),
-            signingCredentials: creds
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);  
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Results.Unauthorized();
+            }     
+            var currentUser = await context.Users.FindAsync(userId);
+            if (currentUser == null)
+            {
+                return Results.Unauthorized();
+            } 
+            
+            return Results.Json(new { message = "Logout successful", user = currentUser.Username });
+        });
     }
 }

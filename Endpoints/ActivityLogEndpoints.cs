@@ -3,6 +3,7 @@ using Pharmacy.Data;
 using Pharmacy.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+        using Microsoft.AspNetCore.Http;
 
 namespace Pharmacy.Endpoints;
 

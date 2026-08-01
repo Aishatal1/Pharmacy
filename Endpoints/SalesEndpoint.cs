@@ -2,7 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Pharmacy.Data;
 using Pharmacy.Dtos;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
+
+
 
 namespace Pharmacy.Endpoints;
 
@@ -114,9 +115,7 @@ public static class SalesEndpoints
 
             return Results.Ok(summary);
         })
-        .WithName("GetDailySalesValidation")
-        .WithOpenApi()
-        .RequireAuthorization();
+        .WithName("GetDailySalesValidation");
 
         // Get sales summary for a date range
         app.MapGet("/sales/range", async (
@@ -147,8 +146,7 @@ public static class SalesEndpoints
 
             return Results.Ok(dailyStats);
         })
-        .WithName("GetSalesRange")
-        .WithOpenApi()
-        .RequireAuthorization();
+        .WithName("GetSalesRange");
+
     }
 }
