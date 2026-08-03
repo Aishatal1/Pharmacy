@@ -71,7 +71,7 @@ public partial class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
-        // Add middleware
+        //Add middleware
         //app.UseMiddleware<ActivityLoggingMiddleware>();
         //app.UseMiddleware<ValidationMiddleware>();
 

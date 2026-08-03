@@ -81,7 +81,7 @@ public static class CustomerEndpoints
                 customer.CreatedAt,
                 customer.CreatedBy.FullName
             ));
-        });
+        }).RequireAuthorization();
 
         // POST create customer
         app.MapPost("/customers", async (

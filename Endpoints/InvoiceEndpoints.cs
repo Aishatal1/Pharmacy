@@ -83,9 +83,8 @@ public static class InvoiceEndpoints
                 .Include(i => i.CreatedBy)
                 .Include(i => i.InvoiceItems)
                     .ThenInclude(ii => ii.Product)
-                .Include(i => i.InvoiceItems)
-                    .ThenInclude(ii => ii.Transaction)
-                        .ThenInclude(t => t.CreatedBy)
+                .Include(i => i.Transactions)
+                    .ThenInclude(t => t.CreatedBy)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
             if (invoice == null)
@@ -106,13 +105,15 @@ public static class InvoiceEndpoints
 
             var items = invoice.InvoiceItems.Select(ii =>
             {
-                var transactionInfo = ii.Transaction != null ? new TransactionInfoDto(
-                    ii.Transaction.Id,
-                    ii.Transaction.TransactionType,
-                    ii.Transaction.Amount,
-                    ii.Transaction.Notes,
-                    ii.Transaction.CreatedAt,
-                    ii.Transaction.CreatedBy?.FullName ?? "Unknown"
+                var transaction = invoice.Transactions.FirstOrDefault(t => t.TransactionType == "Payment");
+                
+                var transactionInfo = transaction != null ? new TransactionInfoDto(
+                    transaction.Id,
+                    transaction.TransactionType,
+                    transaction.Amount,
+                    transaction.Notes,
+                    transaction.CreatedAt,
+                    transaction.CreatedBy?.FullName ?? "Unknown"
                 ) : null;
 
                 return new InvoiceItemDetailDto(
@@ -128,9 +129,7 @@ public static class InvoiceEndpoints
                 );
             }).ToList();
 
-            var allPayments = invoice.InvoiceItems
-                .Where(ii => ii.Transaction != null)
-                .Select(ii => ii.Transaction!)
+            var allPayments = invoice.Transactions
                 .Where(t => t.TransactionType == "Payment")
                 .ToList();
 
@@ -222,7 +221,6 @@ public static class InvoiceEndpoints
             await context.Invoices.AddAsync(invoice);
             await context.SaveChangesAsync();
 
-            // Create response
             var response = new
             {
                 Message = "Invoice created successfully",
@@ -246,11 +244,21 @@ public static class InvoiceEndpoints
                 return Results.Unauthorized();
 
             var invoice = await context.Invoices
-                .Include(i => i.InvoiceItems)
+                .Include(i => i.Customer)  
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
             if (invoice == null)
                 return Results.NotFound($"Invoice {invoiceId} not found");
+
+               //DEBUG - Check the values
+    Console.WriteLine($"=== DEBUG ===");
+    Console.WriteLine($"Invoice ID: {invoice.Id}");
+    Console.WriteLine($"CustomerId from Invoice: {invoice.CustomerId}");
+    Console.WriteLine($"Customer exists: {invoice.Customer != null}");
+    Console.WriteLine($"Customer Name: {invoice.Customer?.Name ?? "NULL"}");
+    Console.WriteLine($"Amount: {amount}");
+    Console.WriteLine($"User ID: {userId}");
+    Console.WriteLine($"============");
 
             if (invoice.IsPaid)
                 return Results.BadRequest("Invoice is already fully paid");
@@ -258,16 +266,10 @@ public static class InvoiceEndpoints
             if (amount <= 0)
                 return Results.BadRequest("Amount must be greater than 0");
 
-            // Find an unpaid invoice item to apply payment to
-            var unpaidItem = invoice.InvoiceItems
-                .FirstOrDefault(ii => ii.Transaction == null || ii.Transaction.Amount < ii.Total);
-
-            if (unpaidItem == null)
-                return Results.BadRequest("All items are already paid");
-
             var transaction = new Transaction
             {
-                InvoiceItemId = unpaidItem.Id,
+                InvoiceId = invoice.Id,
+                CustomerId = invoice.CustomerId,  
                 TransactionType = "Payment",
                 Amount = amount,
                 Notes = $"Payment for invoice {invoice.InvoiceNumber}",
@@ -280,7 +282,7 @@ public static class InvoiceEndpoints
 
             // Check if invoice is now fully paid
             var totalPaid = await context.Transactions
-                .Where(t => invoice.InvoiceItems.Select(ii => ii.Id).Contains(t.InvoiceItemId))
+                .Where(t => t.InvoiceId == invoice.Id)
                 .Where(t => t.TransactionType == "Payment")
                 .SumAsync(t => t.Amount);
 

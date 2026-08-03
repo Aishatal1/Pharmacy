@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Pharmacy.Data.Migrations
+namespace Pharmacy.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -87,6 +87,7 @@ namespace Pharmacy.Data.Migrations
                     CompanyName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     ProductionDate = table.Column<DateOnly>(type: "TEXT", nullable: false),
                     ExpirationDate = table.Column<DateOnly>(type: "TEXT", nullable: false),
+                    Price = table.Column<decimal>(type: "TEXT", nullable: false),
                     CreatedByUserId = table.Column<int>(type: "INTEGER", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
@@ -169,17 +170,24 @@ namespace Pharmacy.Data.Migrations
                     TransactionType = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
                     Amount = table.Column<decimal>(type: "TEXT", precision: 18, scale: 2, nullable: false),
                     Notes = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
-                    InvoiceItemId = table.Column<int>(type: "INTEGER", nullable: false),
                     CreatedByUserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    InvoiceId = table.Column<int>(type: "INTEGER", nullable: false),
+                    CustomerId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Transactions", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Transactions_InvoiceItems_InvoiceItemId",
-                        column: x => x.InvoiceItemId,
-                        principalTable: "InvoiceItems",
+                        name: "FK_Transactions_Customers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "Customers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Transactions_Invoices_InvoiceId",
+                        column: x => x.InvoiceId,
+                        principalTable: "Invoices",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -243,10 +251,14 @@ namespace Pharmacy.Data.Migrations
                 column: "CreatedByUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Transactions_InvoiceItemId",
+                name: "IX_Transactions_CustomerId",
                 table: "Transactions",
-                column: "InvoiceItemId",
-                unique: true);
+                column: "CustomerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Transactions_InvoiceId",
+                table: "Transactions",
+                column: "InvoiceId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Username",
@@ -262,16 +274,16 @@ namespace Pharmacy.Data.Migrations
                 name: "ActivityLogs");
 
             migrationBuilder.DropTable(
-                name: "Transactions");
-
-            migrationBuilder.DropTable(
                 name: "InvoiceItems");
 
             migrationBuilder.DropTable(
-                name: "Invoices");
+                name: "Transactions");
 
             migrationBuilder.DropTable(
                 name: "Products");
+
+            migrationBuilder.DropTable(
+                name: "Invoices");
 
             migrationBuilder.DropTable(
                 name: "Customers");

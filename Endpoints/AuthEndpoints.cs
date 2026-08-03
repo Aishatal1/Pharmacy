@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Pharmacy.Data;
 using Pharmacy.Models;
 using Pharmacy.Dtos;
+using BCrypt.Net;  
 
 namespace Pharmacy.Endpoints;
 
@@ -32,7 +33,7 @@ public static class AuthEndpoints
             var user = new User
             {
                 Username = createDto.Username,
-                PasswordHash = createDto.Password,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(createDto.Password),
                 FullName = createDto.FullName,
                 Role = createDto.Role,
                 IsActive = true,
@@ -58,8 +59,7 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            if (user.PasswordHash != loginDto.Password)
-            {
+if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))            {
                 return Results.Unauthorized();
             }
 

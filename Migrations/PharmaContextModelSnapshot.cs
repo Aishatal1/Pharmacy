@@ -2,20 +2,17 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pharmacy.Data;
 
 #nullable disable
 
-namespace Pharmacy.Data.Migrations
+namespace Pharmacy.Migrations
 {
     [DbContext(typeof(PharmaContext))]
-    [Migration("20260727023048_fixAddActivityLogging")]
-    partial class fixAddActivityLogging
+    partial class PharmaContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -234,7 +231,10 @@ namespace Pharmacy.Data.Migrations
                     b.Property<int>("CreatedByUserId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("InvoiceItemId")
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("InvoiceId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Notes")
@@ -250,8 +250,9 @@ namespace Pharmacy.Data.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.HasIndex("InvoiceItemId")
-                        .IsUnique();
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("InvoiceId");
 
                     b.ToTable("Transactions");
                 });
@@ -376,30 +377,37 @@ namespace Pharmacy.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Pharmacy.Models.InvoiceItem", "InvoiceItem")
-                        .WithOne("Transaction")
-                        .HasForeignKey("Pharmacy.Models.Transaction", "InvoiceItemId")
+                    b.HasOne("Pharmacy.Models.Customer", "Customer")
+                        .WithMany("Transactions")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Pharmacy.Models.Invoice", "Invoice")
+                        .WithMany("Transactions")
+                        .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("InvoiceItem");
+                    b.Navigation("Customer");
+
+                    b.Navigation("Invoice");
                 });
 
             modelBuilder.Entity("Pharmacy.Models.Customer", b =>
                 {
                     b.Navigation("Invoices");
+
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("Pharmacy.Models.Invoice", b =>
                 {
                     b.Navigation("InvoiceItems");
-                });
 
-            modelBuilder.Entity("Pharmacy.Models.InvoiceItem", b =>
-                {
-                    b.Navigation("Transaction");
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("Pharmacy.Models.Product", b =>

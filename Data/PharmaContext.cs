@@ -92,10 +92,7 @@ DbContext(options)
                 .HasForeignKey(ii => ii.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(ii => ii.Transaction)
-                .WithOne(t => t.InvoiceItem)
-                .HasForeignKey<Transaction>(t => t.InvoiceItemId)
-                .OnDelete(DeleteBehavior.Cascade);
+            
 
                 entity.Property(ii => ii.Total)
         .HasComputedColumnSql("Quantity * PriceAtSale", stored: true);
@@ -103,20 +100,25 @@ DbContext(options)
 
         modelBuilder.Entity<Transaction>(entity =>
         {
+            entity.HasOne(t => t.CreatedBy)
+    .WithMany(u => u.Transactions)
+    .HasForeignKey(t => t.CreatedByUserId)
+    .OnDelete(DeleteBehavior.Restrict);
+    
             entity.HasKey(t => t.Id);
             entity.Property(t => t.TransactionType).IsRequired().HasMaxLength(50);
             entity.Property(t => t.Amount).HasPrecision(18, 2);
             entity.Property(t => t.Notes).HasMaxLength(500);
             entity.Property(t => t.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            entity.HasOne(t => t.InvoiceItem)
-                .WithOne(ii => ii.Transaction)
-                .HasForeignKey<Transaction>(t => t.InvoiceItemId)
+            entity.HasOne(t => t.Invoice)
+                .WithMany(ii => ii.Transactions)
+                .HasForeignKey(t => t.InvoiceId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(t => t.CreatedBy)
-                .WithMany(u => u.Transactions)
-                .HasForeignKey(t => t.CreatedByUserId)
+            entity.HasOne(t => t.Customer)
+                .WithMany(c => c.Transactions)
+                .HasForeignKey(t => t.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

@@ -7,11 +7,13 @@ public class Transaction
     public decimal Amount { get; set; }
     public string? Notes { get; set; }
 
-    public int InvoiceItemId { get; set; }
     public int CreatedByUserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public InvoiceItem InvoiceItem { get; set; } = null!;
     public User CreatedBy { get; set; } = null!;
+    public Invoice Invoice { get; set; } = null!;
+    public Customer Customer { get; set; } = null!; 
+    public int InvoiceId {get; set;}
+    public int CustomerId {get; set;}
 }

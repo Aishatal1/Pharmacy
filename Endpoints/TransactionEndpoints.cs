@@ -17,20 +17,16 @@ public static class TransactionEndpoints
             PharmaContext context) =>
         {
             var invoice = await context.Invoices
-                .Include(i => i.InvoiceItems)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
             if (invoice == null)
                 return Results.NotFound($"Invoice {invoiceId} not found");
 
-            var invoiceItemIds = invoice.InvoiceItems.Select(ii => ii.Id).ToList();
-
             var transactions = await context.Transactions
                 .Include(t => t.CreatedBy)
-                .Where(t => invoiceItemIds.Contains(t.InvoiceItemId))
+                .Where(t => t.InvoiceId == invoiceId)
                 .Select(t => new TransactionDto(
                     t.Id,
-                    t.InvoiceItemId,
                     t.TransactionType,
                     t.Amount,
                     t.Notes,
@@ -53,22 +49,24 @@ public static class TransactionEndpoints
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
                 return Results.Unauthorized();
 
-            // Check if invoice item exists
-            var invoiceItem = await context.InvoiceItems
-                .Include(ii => ii.Invoice)
-                .FirstOrDefaultAsync(ii => ii.Id == createDto.InvoiceItemId);
-
-            if (invoiceItem == null)
-                return Results.NotFound($"Invoice item {createDto.InvoiceItemId} not found");
-
             // Check if transaction type is valid
             var validTypes = new[] { "Sale", "Payment", "Refund" };
             if (!validTypes.Contains(createDto.TransactionType))
                 return Results.BadRequest($"Transaction type must be one of: {string.Join(", ", validTypes)}");
 
+            // Get the invoice
+            var invoice = await context.Invoices
+                .Include(i => i.Customer)
+                .FirstOrDefaultAsync(i => i.Id == createDto.InvoiceId);
+
+            if (invoice == null)
+                return Results.NotFound($"Invoice {createDto.InvoiceId} not found");
+
+            // Create transaction directly linked to Invoice
             var transaction = new Transaction
             {
-                InvoiceItemId = createDto.InvoiceItemId,
+                InvoiceId = invoice.Id,
+                CustomerId = invoice.CustomerId,
                 TransactionType = createDto.TransactionType,
                 Amount = createDto.Amount,
                 Notes = createDto.Notes,
@@ -82,9 +80,8 @@ public static class TransactionEndpoints
             // Update invoice paid status if this is a payment
             if (createDto.TransactionType == "Payment")
             {
-                var invoice = invoiceItem.Invoice;
                 var totalPaid = await context.Transactions
-                    .Where(t => invoice.InvoiceItems.Select(ii => ii.Id).Contains(t.InvoiceItemId))
+                    .Where(t => t.InvoiceId == invoice.Id)
                     .Where(t => t.TransactionType == "Payment")
                     .SumAsync(t => t.Amount);
 
@@ -95,20 +92,12 @@ public static class TransactionEndpoints
                 }
             }
 
-            var transactionDto = new TransactionDto(
-                transaction.Id,
-                transaction.InvoiceItemId,
-                transaction.TransactionType,
-                transaction.Amount,
-                transaction.Notes,
-                transaction.CreatedAt,
-                user.FindFirst("FullName")?.Value ?? "Unknown"
-            );
-
             return Results.Created($"/transactions/{transaction.Id}", new
             {
                 Message = "Transaction created successfully",
-                Transaction = transactionDto
+                TransactionId = transaction.Id,
+                InvoiceId = transaction.InvoiceId,
+                Amount = transaction.Amount
             });
         });
 
@@ -119,8 +108,8 @@ public static class TransactionEndpoints
         {
             var transaction = await context.Transactions
                 .Include(t => t.CreatedBy)
-                .Include(t => t.InvoiceItem)
-                    .ThenInclude(ii => ii.Invoice)
+                .Include(t => t.Invoice)
+                .Include(t => t.Customer)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (transaction == null)
@@ -128,7 +117,6 @@ public static class TransactionEndpoints
 
             var transactionDto = new TransactionDto(
                 transaction.Id,
-                transaction.InvoiceItemId,
                 transaction.TransactionType,
                 transaction.Amount,
                 transaction.Notes,

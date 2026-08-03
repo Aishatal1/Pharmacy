@@ -13,4 +13,5 @@ public class Customer
 
     public User CreatedBy { get; set; } = null!;
     public List<Invoice> Invoices { get; set; } = new();
+    public List<Transaction> Transactions { get; set; } = new();
 }

@@ -3,7 +3,7 @@ using Pharmacy.Data;
 using Pharmacy.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-        using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 
 namespace Pharmacy.Endpoints;
 
@@ -13,15 +13,12 @@ public static class BillEndpoints
     {
         //get all bills for a specific customer
         app.MapGet("/customers/{customerId}/bills", async (
-
             int customerId,
             bool includePaid,
             DateTime? startDate,
             DateTime? endDate,
             PharmaContext context) =>
         {
-
-
             var customerExists = await context.Customers.AnyAsync(c => c.Id == customerId);
             if (!customerExists)
             {
@@ -34,34 +31,28 @@ public static class BillEndpoints
                 .Include(i => i.CreatedBy)
                 .Include(i => i.InvoiceItems)
                     .ThenInclude(ii => ii.Product)
-                .Include(i => i.InvoiceItems)
-                    .ThenInclude(ii => ii.Transaction)
+                .Include(i => i.Transactions)  // ← FIXED: Load transactions directly
+                    .ThenInclude(t => t.CreatedBy)
                 .Where(i => i.CustomerId == customerId);
 
             if (!includePaid) 
             {
-
                 query = query.Where(i => !i.IsPaid);
             }
 
             if (startDate.HasValue)
             {
                 query = query.Where(i => i.CreatedAt >= startDate.Value.Date);
-
             }
 
             if (endDate.HasValue)
             {
                 query = query.Where(i => i.CreatedAt <= endDate.Value.Date.AddDays(1));
-
-
             }
 
             var invoices = await query
                 .OrderByDescending(i => i.CreatedAt)
                 .Select(i => new InvoiceDto(
-
-
                     i.Id,
                     i.InvoiceNumber,
                     i.CustomerId,
@@ -84,8 +75,9 @@ public static class BillEndpoints
             var totalAmount = invoices.Sum(i => i.TotalAmount);
             
             var invoiceIds = invoices.Select(i => i.Id).ToList();
+            
             var totalPaid = await context.Transactions
-                .Where(t => invoiceIds.Contains(t.InvoiceItem.InvoiceId))
+                .Where(t => invoiceIds.Contains(t.InvoiceId))
                 .Where(t => t.TransactionType == "Payment")
                 .SumAsync(t => t.Amount);
 
@@ -125,17 +117,15 @@ public static class BillEndpoints
             var invoices = customer.Invoices;
             var totalAmount = invoices.Sum(i => i.TotalAmount);
 
-            //total paid from transactions
             var invoiceIds = invoices.Select(i => i.Id).ToList();
+            
             var totalPaid = await context.Transactions
-                .Where(t => invoiceIds.Contains(t.InvoiceItem.InvoiceId))
+                .Where(t => invoiceIds.Contains(t.InvoiceId))
                 .Where(t => t.TransactionType == "Payment")
                 .SumAsync(t => t.Amount);
 
             return Results.Ok(new
             {
-
-
                 Customer = new
                 {
                     customer.Id,
@@ -143,18 +133,14 @@ public static class BillEndpoints
                     customer.PhoneNumber,
                     customer.EmailAddress
                 },
-
                 InvoiceSummary = new
                 {
-
-
                     TotalInvoices = invoices.Count,
                     TotalAmount = totalAmount,
                     TotalPaid = totalPaid,
                     RemainingBalance = totalAmount - totalPaid,
                     PaidInvoices = invoices.Count(i => i.IsPaid),
                     UnpaidInvoices = invoices.Count(i => !i.IsPaid)
-
                 }
             });
         })
@@ -165,15 +151,13 @@ public static class BillEndpoints
             int invoiceId,
             PharmaContext context) =>
         {
-
             var invoice = await context.Invoices
                 .Include(i => i.Customer)
                 .Include(i => i.CreatedBy)
                 .Include(i => i.InvoiceItems)
                     .ThenInclude(ii => ii.Product)
-                .Include(i => i.InvoiceItems)
-                    .ThenInclude(ii => ii.Transaction)
-                        .ThenInclude(t => t.CreatedBy)
+                .Include(i => i.Transactions)  // ← FIXED: Load transactions directly
+                    .ThenInclude(t => t.CreatedBy)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
             if (invoice == null)
@@ -186,28 +170,27 @@ public static class BillEndpoints
                 invoice.Customer.Name,
                 invoice.Customer.PhoneNumber,
                 invoice.Customer.EmailAddress
-
             );
 
             var userInfo = new UserInfoDto(
                 invoice.CreatedBy.Id,
                 invoice.CreatedBy.FullName,
                 invoice.CreatedBy.Username
-
             );
 
+            // FIXED: Use invoice.Transactions directly
             var items = invoice.InvoiceItems.Select(ii =>
             {
-                var transactionInfo = ii.Transaction != null ? new TransactionInfoDto(
-                    ii.Transaction.Id,
-                    ii.Transaction.TransactionType,
-                    ii.Transaction.Amount,
-                    ii.Transaction.Notes,
-                    ii.Transaction.CreatedAt,
-                    ii.Transaction.CreatedBy?.FullName ?? "Unknown"
-
+                var transaction = invoice.Transactions.FirstOrDefault(t => t.TransactionType == "Payment");
+                
+                var transactionInfo = transaction != null ? new TransactionInfoDto(
+                    transaction.Id,
+                    transaction.TransactionType,
+                    transaction.Amount,
+                    transaction.Notes,
+                    transaction.CreatedAt,
+                    transaction.CreatedBy?.FullName ?? "Unknown"
                 ) : null;
-
 
                 return new InvoiceItemDetailDto(
                     ii.Id,
@@ -219,13 +202,11 @@ public static class BillEndpoints
                     ii.PriceAtSale,
                     ii.Total,
                     transactionInfo
-                    
                 );
             }).ToList();
 
-            var allPayments = invoice.InvoiceItems
-                .Where(ii => ii.Transaction != null)
-                .Select(ii => ii.Transaction!)
+            // FIXED: Use invoice.Transactions directly
+            var allPayments = invoice.Transactions
                 .Where(t => t.TransactionType == "Payment")
                 .ToList();
 
@@ -236,9 +217,6 @@ public static class BillEndpoints
                 t.Notes,
                 t.CreatedAt,
                 t.CreatedBy?.FullName ?? "Unknown"
-
-
-
             )).ToList();
 
             var totalPaid = payments.Sum(p => p.Amount);
@@ -265,7 +243,6 @@ public static class BillEndpoints
 
             return Results.Ok(invoiceDetail);
         })
-
         .WithName("GetInvoiceDetails");
     }
 }
