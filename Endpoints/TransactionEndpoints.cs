@@ -22,20 +22,19 @@ public static class TransactionEndpoints
             if (invoice == null)
                 return Results.NotFound($"Invoice {invoiceId} not found");
 
-            var transactions = await context.Transactions
-                .Include(t => t.CreatedBy)
-                .Where(t => t.InvoiceId == invoiceId)
-                .Select(t => new TransactionDto(
-                    t.Id,
-                    t.TransactionType,
-                    t.Amount,
-                    t.Notes,
-                    t.CreatedAt,
-                    t.CreatedBy.FullName
-                ))
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
-
+                var transactions = await context.Transactions
+            .Include(t => t.CreatedBy)
+            .Where(t => t.InvoiceId == invoiceId)
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new TransactionDto(
+                t.Id,
+                t.TransactionType,
+                t.Amount,
+                t.Notes,
+                t.CreatedAt,
+                t.CreatedBy.FullName
+            ))
+            .ToListAsync();
             return Results.Ok(transactions);
         });
 

@@ -3,7 +3,7 @@ using Pharmacy.Data;
 using Pharmacy.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-        using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 
 namespace Pharmacy.Endpoints;
 
@@ -23,51 +23,34 @@ public static class ActivityLogEndpoints
             int pageSize,
             PharmaContext context) =>
         {
-            //default values for pagination
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 20;
             if (pageSize > 100) pageSize = 100;
 
-            // Build query
             var query = context.ActivityLogs
                 .Include(l => l.User)
                 .AsQueryable();
 
-            // Apply filters
             if (!string.IsNullOrEmpty(action))
-            {
                 query = query.Where(l => l.Action == action.ToUpper());
-            }
 
             if (!string.IsNullOrEmpty(tableName))
-            {
                 query = query.Where(l => l.TableName == tableName);
-            }
 
             if (userId.HasValue && userId.Value > 0)
-            {
                 query = query.Where(l => l.UserId == userId.Value);
-            }
 
             if (startDate.HasValue)
-            {
                 query = query.Where(l => l.Timestamp >= startDate.Value.Date);
-            }
 
             if (endDate.HasValue)
-            {
                 query = query.Where(l => l.Timestamp <= endDate.Value.Date.AddDays(1));
-            }
 
             if (recordId.HasValue)
-            {
                 query = query.Where(l => l.RecordId == recordId.Value);
-            }
 
-            // Get total count for pagination
             var totalCount = await query.CountAsync();
 
-            // Apply pagination
             var logs = await query
                 .OrderByDescending(l => l.Timestamp)
                 .Skip((page - 1) * pageSize)
@@ -103,54 +86,58 @@ public static class ActivityLogEndpoints
                     RecordId = recordId
                 }
             });
-        })
-        .WithName("GetActivityLogs");
+        });
 
-        // Get activity log statistics
+        // Get activity log statistics - SIMPLIFIED VERSION
         app.MapGet("/activity-logs/stats", async (
             DateTime? startDate,
             DateTime? endDate,
             PharmaContext context) =>
         {
-            var query = context.ActivityLogs.AsQueryable();
-
-            if (startDate.HasValue)
+            try
             {
-                query = query.Where(l => l.Timestamp >= startDate.Value.Date);
-            }
+                var query = context.ActivityLogs.AsQueryable();
 
-            if (endDate.HasValue)
-            {
-                query = query.Where(l => l.Timestamp <= endDate.Value.Date.AddDays(1));
-            }
+                if (startDate.HasValue)
+                    query = query.Where(l => l.Timestamp >= startDate.Value.Date);
 
-            var stats = new
-            {
-                TotalActions = await query.CountAsync(),
-                ActionsByType = await query
+                if (endDate.HasValue)
+                    query = query.Where(l => l.Timestamp <= endDate.Value.Date.AddDays(1));
+
+                // Total actions
+                var totalActions = await query.CountAsync();
+
+                // Actions by type
+                var actionsByType = await query
                     .GroupBy(l => l.Action)
                     .Select(g => new { Action = g.Key, Count = g.Count() })
-                    .ToListAsync(),
-                ActionsByTable = await query
+                    .ToListAsync();
+
+                // Actions by table
+                var actionsByTable = await query
                     .GroupBy(l => l.TableName)
                     .Select(g => new { Table = g.Key, Count = g.Count() })
-                    .ToListAsync(),
-                ActionsByUser = await query
-                    .Include(l => l.User)
-                    .GroupBy(l => new { l.UserId, l.User.FullName })
-                    .Select(g => new { UserName = g.Key.FullName, Count = g.Count() })
-                    .OrderByDescending(x => x.Count)
-                    .Take(5)
-                    .ToListAsync(),
-                LatestActivity = await query
+                    .ToListAsync();
+
+                // Latest activity
+                var latestActivity = await query
                     .OrderByDescending(l => l.Timestamp)
                     .Select(l => new { l.Timestamp, l.Action, l.TableName })
-                    .FirstOrDefaultAsync()
-            };
+                    .FirstOrDefaultAsync();
 
-            return Results.Ok(stats);
-        })
-        .WithName("GetActivityLogStats");
+                return Results.Ok(new
+                {
+                    TotalActions = totalActions,
+                    ActionsByType = actionsByType,
+                    ActionsByTable = actionsByTable,
+                    LatestActivity = latestActivity
+                });
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem($"Error: {ex.Message}");
+            }
+        });
 
         // Get activity logs for a specific record
         app.MapGet("/activity-logs/record/{tableName}/{recordId}", async (
@@ -174,13 +161,10 @@ public static class ActivityLogEndpoints
                 .ToListAsync();
 
             if (!logs.Any())
-            {
                 return Results.NotFound($"No activity logs found for {tableName} with ID {recordId}");
-            }
 
             return Results.Ok(logs);
-        })
-        .WithName("GetRecordActivityLogs");
+        });
 
         // Get user activity summary
         app.MapGet("/activity-logs/user/{userId}/summary", async (
@@ -191,38 +175,27 @@ public static class ActivityLogEndpoints
         {
             var user = await context.Users.FindAsync(userId);
             if (user == null)
-            {
                 return Results.NotFound($"User with ID {userId} not found");
-            }
 
-            var query = context.ActivityLogs
-                .Where(l => l.UserId == userId);
+            var query = context.ActivityLogs.Where(l => l.UserId == userId);
 
             if (startDate.HasValue)
-            {
                 query = query.Where(l => l.Timestamp >= startDate.Value.Date);
-            }
 
             if (endDate.HasValue)
-            {
                 query = query.Where(l => l.Timestamp <= endDate.Value.Date.AddDays(1));
-            }
 
             var summary = new
             {
                 User = new
                 {
-
                     user.Id,
                     user.FullName,
                     user.Username,
                     user.Role
                 },
-
-
                 Statistics = new
                 {
-
                     TotalActivities = await query.CountAsync(),
                     LastActivity = await query
                         .OrderByDescending(l => l.Timestamp)
@@ -237,13 +210,10 @@ public static class ActivityLogEndpoints
                         .Select(g => new { Table = g.Key, Count = g.Count() })
                         .OrderByDescending(x => x.Count)
                         .FirstOrDefaultAsync()
-
-
                 }
             };
 
             return Results.Ok(summary);
-        })
-        .WithName("GetUserActivitySummary");
+        });
     }
 }

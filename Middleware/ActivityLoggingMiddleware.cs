@@ -33,12 +33,12 @@ public class ActivityLoggingMiddleware
             {
                 await LogActivityAsync(context, dbContext);
             }
+            responseBody.Position = 0;
 
             await responseBody.CopyToAsync(originalBodyStream);
         }
         catch (Exception)
         {
-            await _next(context);
             throw;
         }
         finally

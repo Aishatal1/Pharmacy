@@ -57,7 +57,7 @@ public partial class Program
 
         var app = builder.Build();
 
-        // Configure pipeline
+        //pipeline configuration
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -71,11 +71,11 @@ public partial class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
-        //Add middleware
-        //app.UseMiddleware<ActivityLoggingMiddleware>();
-        //app.UseMiddleware<ValidationMiddleware>();
+        //middleware
+        app.UseMiddleware<ActivityLoggingMiddleware>();
+        app.UseMiddleware<ValidationMiddleware>();
 
-        // Map all endpoints
+        //endpoints
         app.MapAuthEndpoints();
         app.MapSalesEndpoints();
         app.MapBillEndpoints();
