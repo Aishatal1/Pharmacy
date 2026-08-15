@@ -47,10 +47,10 @@ public partial class Program
         builder.Services.AddAuthorization();
         builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
+    options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.AllowAnyOrigin("https://pharmacy-ui.onrender.com")
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
