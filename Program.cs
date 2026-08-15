@@ -95,6 +95,21 @@ public partial class Program
         app.MapProductEndpoints();
         app.MapInvoiceEndpoints();
         app.MapTransactionEndpoints();
+
+
+
+
+        app.MapGet("/", () => Results.Ok(new
+{
+    message = "Pharmacy API is running"
+}));
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy"
+}));
+
+
         app.Run();
     }
 }
