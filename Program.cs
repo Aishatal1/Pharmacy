@@ -50,7 +50,8 @@ public partial class Program
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.AllowAnyOrigin(    "http://localhost:3000",
+            policy.WithOrigins(
+    "http://localhost:3000",
                     "https://pharmacy-ui.onrender.com")
                   .AllowAnyMethod()
                   .AllowAnyHeader();
