@@ -66,7 +66,11 @@ public partial class Program
         builder.Services.AddFluentValidationAutoValidation();
         builder.Services.AddFluentValidationClientsideAdapters();
         
-        
+        using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<PharmaContext>();
+    db.Database.EnsureCreated();
+}
         var app = builder.Build();
 
         //pipeline configuration
