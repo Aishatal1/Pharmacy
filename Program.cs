@@ -50,7 +50,8 @@ public partial class Program
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.AllowAnyOrigin("https://pharmacy-ui.onrender.com")
+            policy.AllowAnyOrigin(    "http://localhost:3000",
+                    "https://pharmacy-ui.onrender.com")
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
@@ -63,16 +64,7 @@ public partial class Program
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
         builder.Services.AddFluentValidationAutoValidation();
         builder.Services.AddFluentValidationClientsideAdapters();
-        builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("ReactApp", policy =>
-                {
-                    policy
-                        .WithOrigins("http://localhost:3000")
-                        .AllowAnyHeader()
-                        .AllowAnyMethod();
-                });
-            });
+        
         
         var app = builder.Build();
 
@@ -86,11 +78,10 @@ public partial class Program
                 c.RoutePrefix = "swagger";
             });
         }
-        app.UseCors("ReactApp");
 
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseCors("AllowAll");
+        app.UseCors("AllowFrontend");
         //middleware
         app.UseMiddleware<ActivityLoggingMiddleware>();
         app.UseMiddleware<ValidationMiddleware>();
