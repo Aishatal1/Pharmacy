@@ -45,7 +45,16 @@ public partial class Program
             });
 
         builder.Services.AddAuthorization();
-        
+        builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+});        
         // Add Swagger
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
@@ -54,7 +63,17 @@ public partial class Program
         builder.Services.AddValidatorsFromAssemblyContaining<Program>();
         builder.Services.AddFluentValidationAutoValidation();
         builder.Services.AddFluentValidationClientsideAdapters();
-
+        builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("ReactApp", policy =>
+                {
+                    policy
+                        .WithOrigins("http://localhost:3000")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+        
         var app = builder.Build();
 
         //pipeline configuration
@@ -67,14 +86,14 @@ public partial class Program
                 c.RoutePrefix = "swagger";
             });
         }
+        app.UseCors("ReactApp");
 
         app.UseAuthentication();
         app.UseAuthorization();
-
+        app.UseCors("AllowAll");
         //middleware
         app.UseMiddleware<ActivityLoggingMiddleware>();
         app.UseMiddleware<ValidationMiddleware>();
-
         //endpoints
         app.MapAuthEndpoints();
         app.MapSalesEndpoints();
