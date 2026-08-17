@@ -49,6 +49,7 @@ public static class InvoiceEndpoints
                     i.Customer.Name,
                     i.TotalAmount,
                     i.IsPaid,
+                    i.Remarks,
                     i.CreatedAt,
                     i.CreatedBy.FullName,
                     i.InvoiceItems.Select(ii => new InvoiceItemDto(
@@ -192,6 +193,7 @@ public static class InvoiceEndpoints
                 CreatedByUserId = userId,
                 CreatedAt = DateTime.UtcNow,
                 IsPaid = false,
+                Remarks ="",
                 InvoiceItems = new List<InvoiceItem>()
             };
 

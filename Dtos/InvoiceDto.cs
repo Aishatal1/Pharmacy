@@ -7,6 +7,7 @@ public record InvoiceDto(
     string CustomerName,
     decimal TotalAmount,
     bool IsPaid,
+    string Remarks,
     DateTime CreatedAt,
     string CreatedByUsername,
     List<InvoiceItemDto> Items

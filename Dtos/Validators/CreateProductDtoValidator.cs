@@ -16,5 +16,13 @@ public class CreateProductDtoValidator : AbstractValidator<CreateProductDto>
 
         RuleFor(x => x.Price)
             .GreaterThan(0).WithMessage("Price must be greater than 0");
+        
+         RuleFor(x => x.ExpirationDate)
+            .GreaterThan(DateOnly.FromDateTime(DateTime.Now))
+            .WithMessage("Expiration Date must be in the future!");
+        
+        RuleFor(x => x.ExpirationDate)
+            .GreaterThan(x => x.ProductionDate)
+            .WithMessage("Expiration Date must be after creation date!");
     }
 }
