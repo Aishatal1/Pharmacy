@@ -59,6 +59,7 @@ public static class BillEndpoints
                     i.Customer.Name,
                     i.TotalAmount,
                     i.IsPaid,
+                    i.Remarks,
                     i.CreatedAt,
                     i.CreatedBy.FullName,
                     i.InvoiceItems.Select(ii => new InvoiceItemDto(
